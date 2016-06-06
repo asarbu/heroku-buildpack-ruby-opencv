@@ -14,15 +14,15 @@ cache=$2
 mkdir -p $build
 mkdir -p $cache
 
-cmake_version="2.8.12.2"
-cmake_url="http://www.cmake.org/files/v2.8/cmake-${cmake_version}.tar.gz"
+cmake_version="3.5.2"
+cmake_url="https://cmake.org/files/v3.5/cmake-${cmake_version}.tar.gz"
 cmake_file="cmake-${cmake_version}.tar.gz"
 cmake_tar_dir="cmake-${cmake_version}"
 
-opencv_version="2.4.9"
+opencv_version="2.4.11"
 opencv_dir="opencv-${opencv_version}"
-opencv_file="${opencv_dir}.tar.gz"
-opencv_url="https://codeload.github.com/Itseez/opencv/tar.gz/${opencv_version}"
+opencv_file="${opencv_dir}.zip"
+opencv_url="http://downloads.sourceforge.net/project/opencvlibrary/opencv-unix/${opencv_version}/${opencv_file}"
 
 cache_target=${cache}/${cmake_file}
 build_target=${build}/.heroku
@@ -33,13 +33,14 @@ indent() {
   [ $(uname) == "Darwin" ] && sed -l "$RE" || sed -u "$RE"
 }
 
+# install cmake
 if [ ! -f ${cache_target} ]; then
   echo "No cached compile detected. Building..." | indent
   cd $build
 
   echo "Compiling cmake v${cmake_version}..." | indent
 
-  curl -s ${cmake_url} > ${cmake_file}
+  wget ${cmake_url} > ${cmake_file}
   tar zxf ${cmake_file}
   cd ${cmake_tar_dir}
   ./bootstrap --prefix=${target} | indent
@@ -57,18 +58,18 @@ PATH=$build_target/bin:$PATH
 cache_target=$cache/$opencv_file
 build_target=$build/.heroku
 
+# install opencv
 if [ ! -f $cache_target ]; then
-  opencv_package="https://s3.amazonaws.com/bloominga-public/heroku/vulcan-compiled-opencv.tgz"
-  # download open cv
-  vendored_opencv="/app/vendor/opencv"
-  mkdir -p $vendored_opencv
-  curl $opencv_package -s -o - | tar xzf - -C $vendored_opencv
-
-  # copy open cv libs to build dir
-  mkdir -p $build/lib
-  cp -a "$vendored_opencv/lib/." "$build/lib/"
-
-  tar czf $cache_target -C $vendored_opencv .
+  wget ${opencv_url} > ${opencv_file}
+  unzip ${opencv_file}
+  cd ${opencv_dir}
+  mkdir release
+  cd release
+  
+  # compile and install
+  cmake -G "Unix Makefiles" -D CMAKE_CXX_COMPILER=/usr/bin/g++ CMAKE_C_COMPILER=/usr/bin/gcc -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D INSTALL_C_EXAMPLES=ON -D INSTALL_PYTHON_EXAMPLES=ON -D BUILD_EXAMPLES=ON -D WITH_QT=ON -D WITH_OPENGL=ON -D BUILD_FAT_JAVA_LIB=ON -D INSTALL_TO_MANGLED_PATHS=ON -D INSTALL_CREATE_DISTRIB=ON -D INSTALL_TESTS=ON -D ENABLE_FAST_MATH=ON -D WITH_IMAGEIO=ON -D BUILD_SHARED_LIBS=OFF -D WITH_GSTREAMER=ON ..
+  make all -j4 # 4 cores
+  sudo make install
 fi
 
 mkdir -p $build_target
