@@ -40,44 +40,47 @@ if [ ! -f ${cache_target} ]; then
 
   echo "Compiling cmake v${cmake_version}..." | indent
 
-  wget ${cmake_url} > ${cmake_file}
+  # rm ${cmake_file}*
+  wget ${cmake_url}
   tar zxf ${cmake_file}
   cd ${cmake_tar_dir}
   ./bootstrap --prefix=${target} | indent
   make | indent
-  make install | indent
+  sudo make install | indent
   cd ..
 
-  tar czf ${cache_target} -C ${target} .
+  echo 'DONE CMAKE INSTALLATION'
+  # tar czf ${cache_target} -C ${target} .
 fi
 
-mkdir -p $build_target
-tar xzf $cache_target -C $build_target
-PATH=$build_target/bin:$PATH
+# mkdir -p $build_target
+# tar xzf $cache_target -C $build_target
+# PATH=$build_target/bin:$PATH
 
-cache_target=$cache/$opencv_file
-build_target=$build/.heroku
+# cache_target=$cache/$opencv_file
+# build_target=$build/.heroku
 
 # install opencv
-if [ ! -f $cache_target ]; then
-  wget ${opencv_url} > ${opencv_file}
+# if [ ! -f $cache_target ]; then
+  # rm ${opencv_file}*
+  wget ${opencv_url}
   unzip ${opencv_file}
   cd ${opencv_dir}
   mkdir release
   cd release
-  
+
   # compile and install
   cmake -G "Unix Makefiles" -D CMAKE_CXX_COMPILER=/usr/bin/g++ CMAKE_C_COMPILER=/usr/bin/gcc -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D INSTALL_C_EXAMPLES=ON -D INSTALL_PYTHON_EXAMPLES=ON -D BUILD_EXAMPLES=ON -D WITH_QT=ON -D WITH_OPENGL=ON -D BUILD_FAT_JAVA_LIB=ON -D INSTALL_TO_MANGLED_PATHS=ON -D INSTALL_CREATE_DISTRIB=ON -D INSTALL_TESTS=ON -D ENABLE_FAST_MATH=ON -D WITH_IMAGEIO=ON -D BUILD_SHARED_LIBS=OFF -D WITH_GSTREAMER=ON ..
   make all -j4 # 4 cores
   sudo make install
-fi
+# fi
 
-mkdir -p $build_target
-tar xzf $cache_target -C $build_target
+# mkdir -p $build_target
+# tar xzf $cache_target -C $build_target
 
-mkdir -p $build/.profile.d
+# mkdir -p $build/.profile.d
 
-ls -la $build/*
-ls -la $target/*
+# ls -la $build/*
+# ls -la $target/*
 
-echo "export PATH=\$target/bin:\$PATH" > $build/.profile.d/opencv.sh
+# echo "export PATH=\$target/bin:\$PATH" > $build/.profile.d/opencv.sh
