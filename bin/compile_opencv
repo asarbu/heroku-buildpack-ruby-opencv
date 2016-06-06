@@ -14,15 +14,15 @@ cache=$2
 mkdir -p $build
 mkdir -p $cache
 
-cmake_version="3.5.2"
-cmake_url="https://cmake.org/files/v3.5/cmake-${cmake_version}.tar.gz"
+cmake_version="2.8.12.2"
+cmake_url="http://www.cmake.org/files/v2.8/cmake-${cmake_version}.tar.gz"
 cmake_file="cmake-${cmake_version}.tar.gz"
 cmake_tar_dir="cmake-${cmake_version}"
 
-opencv_version="2.4.11"
+opencv_version="2.4.9"
 opencv_dir="opencv-${opencv_version}"
-opencv_file="${opencv_dir}.zip"
-opencv_url="http://downloads.sourceforge.net/project/opencvlibrary/opencv-unix/${opencv_version}/${opencv_file}"
+opencv_file="${opencv_dir}.tar.gz"
+opencv_url="https://codeload.github.com/Itseez/opencv/tar.gz/${opencv_version}"
 
 cache_target=${cache}/${cmake_file}
 build_target=${build}/.heroku
@@ -33,67 +33,62 @@ indent() {
   [ $(uname) == "Darwin" ] && sed -l "$RE" || sed -u "$RE"
 }
 
-# install dependencies
-sudo apt-get update
-sudo apt-get install -y build-essential
-sudo apt-get install -y cmake
-sudo apt-get install -y libgtk2.0-dev
-sudo apt-get install -y pkg-config
-sudo apt-get install -y python-numpy python-dev
-sudo apt-get install -y libavcodec-dev libavformat-dev libswscale-dev
-sudo apt-get install -y libjpeg-dev libpng-dev libtiff-dev libjasper-dev
-
-sudo apt-get -qq install libopencv-dev build-essential checkinstall cmake pkg-config yasm libjpeg-dev libjasper-dev libavcodec-dev libavformat-dev libswscale-dev libdc1394-22-dev libxine-dev libgstreamer0.10-dev libgstreamer-plugins-base0.10-dev libv4l-dev python-dev python-numpy libtbb-dev libqt4-dev libgtk2.0-dev libmp3lame-dev libopencore-amrnb-dev libopencore-amrwb-dev libtheora-dev libvorbis-dev libxvidcore-dev x264 v4l-utils
-
-
-# install cmake
 if [ ! -f ${cache_target} ]; then
   echo "No cached compile detected. Building..." | indent
   cd $build
 
   echo "Compiling cmake v${cmake_version}..." | indent
 
-  # rm ${cmake_file}*
   wget ${cmake_url}
   tar zxf ${cmake_file}
   cd ${cmake_tar_dir}
   ./bootstrap --prefix=${target} | indent
   make | indent
-  sudo make install | indent
+  make install | indent
   cd ..
 
-  echo 'DONE CMAKE INSTALLATION'
-  # tar czf ${cache_target} -C ${target} .
+  tar czf ${cache_target} -C ${target} .
 fi
 
-# mkdir -p $build_target
-# tar xzf $cache_target -C $build_target
-# PATH=$build_target/bin:$PATH
+echo "------> opencv compilation"
+mkdir -p $build_target
+tar xzf $cache_target -C $build_target
+PATH=$build_target/bin:$PATH
 
-# cache_target=$cache/$opencv_file
-# build_target=$build/.heroku
+cache_target=$cache/$opencv_file
+build_target=$build/.heroku
 
-# install opencv
-# if [ ! -f $cache_target ]; then
-  # rm ${opencv_file}*
-  wget ${opencv_url}
-  unzip ${opencv_file}
-  cd ${opencv_dir}
-  mkdir release
-  cd release
+if [ ! -f $cache_target ]; then
+  # opencv_package="https://2474eb9f61f4524f3c73e6b54a287ac6414ad96d.googledrive.com/host/0B1DXmrjKQVniNnBKQkxUSlRPbXM/opencv_build.tar.gz"
+  opencv_package="https://2474eb9f61f4524f3c73e6b54a287ac6414ad96d.googledrive.com/host/0B1DXmrjKQVniNnBKQkxUSlRPbXM/lib_opencv.tar.gz"
+  # download open cv
+  vendored_opencv="/app/vendor/opencv"
+  mkdir -p $vendored_opencv
+  wget $opencv_package
+  # tar -xzf opencv_build.tar.gz
+  tar -xzf lib_opencv.tar.gz
+  # mv build $vendored_opencv
+  mv lib $vendored_opencv
+  # ls -la "$vendored_opencv/build"
 
-  # compile and install
-  cmake -G "Unix Makefiles" -D CMAKE_CXX_COMPILER=/usr/bin/g++ CMAKE_C_COMPILER=/usr/bin/gcc -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON -D BUILD_NEW_PYTHON_SUPPORT=ON -D WITH_V4L=ON -D INSTALL_C_EXAMPLES=ON -D INSTALL_PYTHON_EXAMPLES=ON -D BUILD_EXAMPLES=ON -D WITH_QT=ON -D WITH_OPENGL=ON -D BUILD_FAT_JAVA_LIB=ON -D INSTALL_TO_MANGLED_PATHS=ON -D INSTALL_CREATE_DISTRIB=ON -D INSTALL_TESTS=ON -D ENABLE_FAST_MATH=ON -D WITH_IMAGEIO=ON -D BUILD_SHARED_LIBS=OFF -D WITH_GSTREAMER=ON ..
-  make all -j4 # 4 cores
-  sudo make install
-# fi
+  # copy open cv libs to build dir
+  mkdir -p $build/lib
+  # cp -a "$vendored_opencv/build/lib/." "$build/lib/"
+  cp -a "$vendored_opencv/lib/." "$build/lib/"
 
-# mkdir -p $build_target
-# tar xzf $cache_target -C $build_target
+  tar czf $cache_target -C $vendored_opencv .
+fi
 
-# mkdir -p $build/.profile.d
+mkdir -p $build_target
+tar xzf $cache_target -C $build_target
+
+mkdir -p $build/.profile.d
 
 # ls -la $build/*
 # ls -la $target/*
 
-# echo "export PATH=\$target/bin:\$PATH" > $build/.profile.d/opencv.sh
+echo "------> export path"
+echo "export PATH=\$target/bin:\$PATH" > $build/.profile.d/opencv.sh
+
+echo "------> trying sudo to fix lib1394"
+sudo ln /dev/null /dev/raw1394
